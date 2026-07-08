@@ -1,1 +1,4 @@
-{}
+{
+    "Auth": true,
+    "Tenant": true
+}
