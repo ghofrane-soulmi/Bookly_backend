@@ -1,5 +1,6 @@
 {
     "Auth": true,
     "Tenant": true,
-    "Services": true
+    "Services": true,
+    "Clients": true
 }
