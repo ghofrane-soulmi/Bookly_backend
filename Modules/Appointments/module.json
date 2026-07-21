@@ -1,0 +1,11 @@
+{
+    "name": "Appointments",
+    "alias": "appointments",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Appointments\\Providers\\AppointmentsServiceProvider"
+    ],
+    "files": []
+}

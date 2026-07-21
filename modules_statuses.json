@@ -2,5 +2,6 @@
     "Auth": true,
     "Tenant": true,
     "Services": true,
-    "Clients": true
+    "Clients": true,
+    "Appointments": true
 }
