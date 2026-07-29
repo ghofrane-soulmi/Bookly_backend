@@ -3,5 +3,6 @@
     "Tenant": true,
     "Services": true,
     "Clients": true,
-    "Appointments": true
+    "Appointments": true,
+    "Dashboard": true
 }
