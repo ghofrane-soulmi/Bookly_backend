@@ -5,8 +5,10 @@ namespace Modules\Appointments\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Modules\Appointments\Mail\AppointmentConfirmationMail;
 use Modules\Appointments\Models\Appointment;
 use Modules\Services\Models\Service;
 use Modules\Tenant\Support\Tenant;
@@ -149,8 +151,14 @@ class AppointmentController extends Controller
                 'ends_at' => $endsAt,
             ]);
 
+            $appointment->load(['client', 'service', 'staff', 'business']);
+
+            if ($appointment->client->email) {
+                Mail::to($appointment->client->email)->send(new AppointmentConfirmationMail($appointment));
+            }
+
             return response()->json([
-                'data' => $appointment->load(['client', 'service', 'staff']),
+                'data' => $appointment,
                 'status' => ['message' => 'Appointment created successfully', 'code' => 201],
             ]);
         } catch (\Exception $e) {
