@@ -5,6 +5,7 @@ namespace Modules\Clients\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Validator;
+use Modules\Appointments\Models\Appointment;
 use Modules\Clients\Models\Client;
 
 class ClientController extends Controller
@@ -53,7 +54,9 @@ class ClientController extends Controller
     public function handleGetClient($id)
     {
         try {
-            $client = Client::find($id);
+            $client = Client::with(['appointments' => function ($query) {
+                $query->with(['service', 'staff'])->orderByDesc('starts_at');
+            }])->find($id);
 
             if (! $client) {
                 return response()->json([
@@ -61,8 +64,19 @@ class ClientController extends Controller
                 ]);
             }
 
+            $totalSpent = (float) $client->appointments
+                ->where('status', Appointment::STATUS_COMPLETED)
+                ->sum(fn ($appointment) => (float) $appointment->service->price);
+
+            $clientData = $client->toArray();
+            $clientData['stats'] = [
+                'total_appointments' => $client->appointments->count(),
+                'completed_appointments' => $client->appointments->where('status', Appointment::STATUS_COMPLETED)->count(),
+                'total_spent' => $totalSpent,
+            ];
+
             return response()->json([
-                'data' => $client,
+                'data' => $clientData,
                 'status' => ['message' => 'Client retrieved successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
