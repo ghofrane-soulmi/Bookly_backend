@@ -6,8 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Modules\Auth\Http\Requests\LoginRequest;
 use Modules\Auth\Http\Requests\RegisterRequest;
+use Modules\Auth\Mail\PasswordResetMail;
 use Modules\Auth\Models\User;
 use Modules\Tenant\Models\Business;
 
@@ -79,6 +84,90 @@ class AuthController extends Controller
     public function refresh(): JsonResponse
     {
         return response()->json($this->tokenResponse(auth('api')->refresh()));
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => ['message' => 'Validation failed', 'code' => 422],
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        $email = $validator->validated()['email'];
+        $user = User::withoutGlobalScopes()->where('email', $email)->first();
+
+        // Always respond the same way whether or not the email exists, so this
+        // endpoint can't be used to enumerate registered accounts.
+        if ($user) {
+            $token = Str::random(64);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $email],
+                ['token' => Hash::make($token), 'created_at' => now()]
+            );
+
+            $resetUrl = rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/')
+                .'/reset-password?token='.$token.'&email='.urlencode($email);
+
+            Mail::to($email)->send(new PasswordResetMail($resetUrl));
+        }
+
+        return response()->json([
+            'status' => ['message' => 'If that email is registered, a reset link has been sent.', 'code' => 200],
+        ]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email'],
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => ['message' => 'Validation failed', 'code' => 422],
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        $data = $validator->validated();
+
+        $record = DB::table('password_reset_tokens')->where('email', $data['email'])->first();
+
+        if (! $record || ! Hash::check($data['token'], $record->token)) {
+            return response()->json([
+                'status' => ['message' => 'This password reset link is invalid.', 'code' => 422],
+            ]);
+        }
+
+        if (now()->diffInMinutes($record->created_at) > 60) {
+            return response()->json([
+                'status' => ['message' => 'This password reset link has expired.', 'code' => 422],
+            ]);
+        }
+
+        $user = User::withoutGlobalScopes()->where('email', $data['email'])->first();
+
+        if (! $user) {
+            return response()->json([
+                'status' => ['message' => 'This password reset link is invalid.', 'code' => 422],
+            ]);
+        }
+
+        $user->forceFill(['password' => $data['password']])->save();
+        DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+
+        return response()->json([
+            'status' => ['message' => 'Password reset successfully. You can now log in.', 'code' => 200],
+        ]);
     }
 
     /**
