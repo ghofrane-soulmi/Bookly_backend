@@ -148,7 +148,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if (now()->diffInMinutes($record->created_at) > 60) {
+        if (now()->diffInMinutes($record->created_at, absolute: true) > 60) {
             return response()->json([
                 'status' => ['message' => 'This password reset link has expired.', 'code' => 422],
             ]);
