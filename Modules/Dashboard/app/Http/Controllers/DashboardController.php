@@ -59,13 +59,15 @@ class DashboardController extends Controller
 
         $sixMonthsStart = Carbon::now()->subMonthsNoOverflow(5)->startOfMonth();
 
+        // Grouped in PHP rather than via DATE_FORMAT() so this doesn't depend on
+        // MySQL-specific SQL (keeps it portable to the SQLite test database).
         $revenueByMonthRaw = Appointment::query()
             ->join('services', 'services.id', '=', 'appointments.service_id')
             ->where('appointments.status', Appointment::STATUS_COMPLETED)
             ->where('appointments.starts_at', '>=', $sixMonthsStart)
-            ->selectRaw("DATE_FORMAT(appointments.starts_at, '%Y-%m') as month, SUM(services.price) as revenue")
-            ->groupBy('month')
-            ->pluck('revenue', 'month');
+            ->get(['appointments.starts_at', 'services.price'])
+            ->groupBy(fn ($appointment) => Carbon::parse($appointment->starts_at)->format('Y-m'))
+            ->map(fn ($group) => (float) $group->sum('price'));
 
         $revenueByMonth = collect(range(0, 5))->map(function ($offset) use ($sixMonthsStart, $revenueByMonthRaw) {
             $month = $sixMonthsStart->copy()->addMonthsNoOverflow($offset);
