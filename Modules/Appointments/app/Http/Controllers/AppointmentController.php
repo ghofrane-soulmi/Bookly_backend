@@ -153,7 +153,7 @@ class AppointmentController extends Controller
 
             $appointment->load(['client', 'service', 'staff', 'business']);
 
-            if ($appointment->client->email) {
+            if ($appointment->client->email && $appointment->business->notify_confirmation_email) {
                 Mail::to($appointment->client->email)->send(new AppointmentConfirmationMail($appointment));
             }
 

@@ -50,6 +50,9 @@ class BusinessController extends Controller
                 'phone' => ['nullable', 'string', 'max:50'],
                 'timezone' => ['sometimes', 'required', 'string', 'max:255', 'timezone'],
                 'currency' => ['sometimes', 'required', 'string', 'size:3'],
+                'notify_confirmation_email' => ['sometimes', 'boolean'],
+                'notify_reminder_email' => ['sometimes', 'boolean'],
+                'reminder_lead_hours' => ['sometimes', 'integer', 'min:1', 'max:168'],
             ]);
 
             if ($validator->fails()) {

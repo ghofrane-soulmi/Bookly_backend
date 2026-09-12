@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Modules\Auth\Models\User;
 use Modules\Tenant\Database\Factories\BusinessFactory;
 
-#[Fillable(['name', 'slug', 'email', 'phone', 'timezone', 'currency', 'is_active'])]
+#[Fillable(['name', 'slug', 'email', 'phone', 'timezone', 'currency', 'is_active', 'notify_confirmation_email', 'notify_reminder_email', 'reminder_lead_hours'])]
 class Business extends Model
 {
     use HasFactory;
@@ -24,6 +24,9 @@ class Business extends Model
     {
         return [
             'is_active' => 'boolean',
+            'notify_confirmation_email' => 'boolean',
+            'notify_reminder_email' => 'boolean',
+            'reminder_lead_hours' => 'integer',
         ];
     }
 

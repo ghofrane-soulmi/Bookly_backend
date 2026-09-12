@@ -43,6 +43,26 @@ class AppointmentTest extends TestCase
         Mail::assertSent(AppointmentConfirmationMail::class);
     }
 
+    public function test_confirmation_email_is_not_sent_when_business_disables_it(): void
+    {
+        Mail::fake();
+
+        [$business, $user] = $this->createBusinessWithOwner(['notify_confirmation_email' => false]);
+        [$client, $service] = $this->asTenant($business, fn () => [
+            Client::create(['name' => 'Alice', 'email' => 'alice@example.test']),
+            Service::create(['name' => 'Cut', 'duration_minutes' => 30, 'price' => 20]),
+        ]);
+
+        $this->actingAsTenantUser($user)->postJson('/api/appointments/create', [
+            'client_id' => $client->id,
+            'service_id' => $service->id,
+            'user_id' => $user->id,
+            'starts_at' => now()->addDay()->toDateTimeString(),
+        ])->assertJsonPath('status.code', 201);
+
+        Mail::assertNotSent(AppointmentConfirmationMail::class);
+    }
+
     public function test_overlapping_appointment_for_same_staff_is_rejected(): void
     {
         Mail::fake();
