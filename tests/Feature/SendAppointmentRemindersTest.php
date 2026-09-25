@@ -39,6 +39,7 @@ class SendAppointmentRemindersTest extends TestCase
             return Appointment::create([
                 'client_id' => $client->id,
                 'service_id' => $service->id,
+                'price' => $service->price,
                 'user_id' => $user->id,
                 'starts_at' => $startsAt,
                 'ends_at' => $startsAt->copy()->addMinutes(30),

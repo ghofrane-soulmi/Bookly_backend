@@ -91,7 +91,8 @@ class StaffTest extends TestCase
             ->deleteJson("/api/staff/delete/{$staff->id}")
             ->assertJsonPath('status.code', 200);
 
-        $this->assertNull($staff->fresh());
+        $this->assertSoftDeleted($staff);
+        $this->assertNull(User::find($staff->id));
     }
 
     public function test_user_cannot_delete_their_own_account(): void

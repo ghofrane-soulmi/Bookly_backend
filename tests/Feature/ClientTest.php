@@ -72,6 +72,7 @@ class ClientTest extends TestCase
             ->deleteJson("/api/clients/delete/{$client->id}")
             ->assertJsonPath('status.code', 200);
 
-        $this->assertNull($client->fresh());
+        $this->assertSoftDeleted($client);
+        $this->assertNull(Client::find($client->id));
     }
 }

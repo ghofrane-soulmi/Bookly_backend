@@ -63,7 +63,10 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            // Registered by Modules\Tenant\Providers\TenantServiceProvider —
+            // a plain 'eloquent' driver would apply TenantScope to the auth
+            // system's own user lookups, which run before tenant context exists.
+            'driver' => 'tenant-aware-eloquent',
             'model' => env('AUTH_MODEL', User::class),
         ],
 

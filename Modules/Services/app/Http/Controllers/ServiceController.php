@@ -2,13 +2,20 @@
 
 namespace Modules\Services\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ReturnsServerErrorResponse;
+use App\Support\Money\InvalidMoneyAmountException;
+use App\Support\Money\MoneyInput;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Validator;
 use Modules\Services\Models\Service;
+use Modules\Tenant\Models\Business;
+use Modules\Tenant\Support\Tenant;
 
 class ServiceController extends Controller
 {
+    use ReturnsServerErrorResponse;
+
     public function handleListServices(Request $request)
     {
         try {
@@ -49,10 +56,7 @@ class ServiceController extends Controller
                 'status' => ['message' => 'Services retrieved successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -72,10 +76,7 @@ class ServiceController extends Controller
                 'status' => ['message' => 'Service retrieved successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -99,17 +100,25 @@ class ServiceController extends Controller
                 ]);
             }
 
-            $service = Service::create($validator->validated());
+            $data = $validator->validated();
+
+            try {
+                $data['price'] = MoneyInput::fromDecimalString((string) $data['price'], $this->currencyCode());
+            } catch (InvalidMoneyAmountException $e) {
+                return response()->json([
+                    'status' => ['message' => 'Validation failed', 'code' => 422],
+                    'errors' => ['price' => [$e->getMessage()]],
+                ]);
+            }
+
+            $service = Service::create($data);
 
             return response()->json([
                 'data' => $service,
                 'status' => ['message' => 'Service created successfully', 'code' => 201],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -141,17 +150,27 @@ class ServiceController extends Controller
                 ]);
             }
 
-            $service->update($validator->validated());
+            $data = $validator->validated();
+
+            if (isset($data['price'])) {
+                try {
+                    $data['price'] = MoneyInput::fromDecimalString((string) $data['price'], $this->currencyCode());
+                } catch (InvalidMoneyAmountException $e) {
+                    return response()->json([
+                        'status' => ['message' => 'Validation failed', 'code' => 422],
+                        'errors' => ['price' => [$e->getMessage()]],
+                    ]);
+                }
+            }
+
+            $service->update($data);
 
             return response()->json([
                 'data' => $service->fresh(),
                 'status' => ['message' => 'Service updated successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -172,10 +191,12 @@ class ServiceController extends Controller
                 'status' => ['message' => 'Service deleted successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
+    }
+
+    protected function currencyCode(): string
+    {
+        return Business::find(app(Tenant::class)->id())->currency_code;
     }
 }

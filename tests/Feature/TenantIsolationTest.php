@@ -105,6 +105,7 @@ class TenantIsolationTest extends TestCase
             return Appointment::create([
                 'client_id' => $client->id,
                 'service_id' => $service->id,
+                'price' => $service->price,
                 'user_id' => $userA->id,
                 'starts_at' => now()->addDay(),
                 'ends_at' => now()->addDay()->addMinutes(30),

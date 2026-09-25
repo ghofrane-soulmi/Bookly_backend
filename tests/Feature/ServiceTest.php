@@ -22,9 +22,13 @@ class ServiceTest extends TestCase
         ]);
 
         $response->assertJsonPath('status.code', 201)
-            ->assertJsonPath('data.name', 'Haircut');
+            ->assertJsonPath('data.name', 'Haircut')
+            ->assertJsonPath('data.price.amount', 3500)
+            ->assertJsonPath('data.price.currency', 'USD');
 
-        $this->assertDatabaseHas('services', ['name' => 'Haircut', 'price' => 35]);
+        // Decimal-string input ("35" => $35.00) is converted to minor units
+        // (3500) using the business's currency decimals — see Phase 0 Step 6.
+        $this->assertDatabaseHas('services', ['name' => 'Haircut', 'price' => 3500]);
     }
 
     public function test_service_create_validates_required_fields(): void
@@ -58,9 +62,39 @@ class ServiceTest extends TestCase
             ->putJson("/api/services/update/{$service->id}", ['price' => 25]);
 
         $response->assertJsonPath('status.code', 200)
-            ->assertJsonPath('data.price', '25.00');
+            ->assertJsonPath('data.price.amount', 2500)
+            ->assertJsonPath('data.price.currency', 'USD');
 
-        $this->assertSame('25.00', $service->fresh()->price);
+        $this->assertSame(2500, $service->fresh()->price->getMinorAmount()->toInt());
+    }
+
+    public function test_service_price_uses_the_businesss_own_currency_and_decimals(): void
+    {
+        [, $user] = $this->createBusinessWithOwner(['currency_code' => 'TND']);
+
+        $response = $this->actingAsTenantUser($user)->postJson('/api/services/create', [
+            'name' => 'Massage',
+            'duration_minutes' => 45,
+            'price' => '12.500',
+        ]);
+
+        $response->assertJsonPath('status.code', 201)
+            ->assertJsonPath('data.price.amount', 12500)
+            ->assertJsonPath('data.price.currency', 'TND');
+    }
+
+    public function test_service_price_with_extra_precision_rounds_rather_than_rejects(): void
+    {
+        [, $user] = $this->createBusinessWithOwner();
+
+        $response = $this->actingAsTenantUser($user)->postJson('/api/services/create', [
+            'name' => 'Trim',
+            'duration_minutes' => 15,
+            'price' => '9.999',
+        ]);
+
+        $response->assertJsonPath('status.code', 201)
+            ->assertJsonPath('data.price.amount', 1000);
     }
 
     public function test_service_can_be_deleted(): void
@@ -73,6 +107,7 @@ class ServiceTest extends TestCase
             ->deleteJson("/api/services/delete/{$service->id}")
             ->assertJsonPath('status.code', 200);
 
-        $this->assertNull($service->fresh());
+        $this->assertSoftDeleted($service);
+        $this->assertNull(Service::find($service->id));
     }
 }
