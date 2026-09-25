@@ -2,6 +2,7 @@
 
 namespace Modules\Auth\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ReturnsServerErrorResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,8 @@ use Modules\Auth\Models\User;
 
 class StaffController extends Controller
 {
+    use ReturnsServerErrorResponse;
+
     public function handleListStaff(Request $request)
     {
         try {
@@ -48,10 +51,7 @@ class StaffController extends Controller
                 'status' => ['message' => 'Staff retrieved successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -71,10 +71,7 @@ class StaffController extends Controller
                 'status' => ['message' => 'Staff member retrieved successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -83,7 +80,7 @@ class StaffController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+                'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')],
                 'password' => ['required', 'string', 'min:8'],
                 'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_STAFF])],
             ]);
@@ -102,10 +99,7 @@ class StaffController extends Controller
                 'status' => ['message' => 'Staff member created successfully', 'code' => 201],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -122,7 +116,7 @@ class StaffController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => ['sometimes', 'required', 'string', 'max:255'],
-                'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
+                'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)->whereNull('deleted_at')],
                 'password' => ['sometimes', 'nullable', 'string', 'min:8'],
                 'role' => ['sometimes', 'required', Rule::in([User::ROLE_OWNER, User::ROLE_ADMIN, User::ROLE_STAFF])],
             ]);
@@ -147,10 +141,7 @@ class StaffController extends Controller
                 'status' => ['message' => 'Staff member updated successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 
@@ -183,10 +174,7 @@ class StaffController extends Controller
                 'status' => ['message' => 'Staff member deleted successfully', 'code' => 200],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => ['message' => 'Server error', 'code' => 500],
-                'error' => $e->getMessage(),
-            ]);
+            return $this->serverError($e);
         }
     }
 }

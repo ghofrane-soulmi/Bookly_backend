@@ -23,7 +23,7 @@ class BusinessFactory extends Factory
             'name' => $name,
             'slug' => Business::uniqueSlugFrom($name),
             'timezone' => 'UTC',
-            'currency' => 'USD',
+            'currency_code' => 'USD',
             'is_active' => true,
         ];
     }

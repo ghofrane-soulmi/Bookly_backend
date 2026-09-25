@@ -6,18 +6,19 @@ namespace Modules\Auth\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Modules\Auth\Database\Factories\UserFactory;
 use Modules\Tenant\Models\Concerns\BelongsToTenant;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
-#[Fillable(['business_id', 'name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToTenant, HasFactory, Notifiable;
+    use BelongsToTenant, HasFactory, Notifiable, SoftDeletes;
 
     public const ROLE_OWNER = 'owner';
 

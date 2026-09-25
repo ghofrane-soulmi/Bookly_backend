@@ -99,6 +99,29 @@ class AuthTest extends TestCase
             ->assertJsonPath('user.id', $user->id);
     }
 
+    public function test_a_real_token_from_login_authenticates_a_subsequent_request(): void
+    {
+        // Deliberately does NOT use actingAsTenantUser()/actingAs(), which sets
+        // guard state directly and never touches the database-driven token
+        // resolution path. This exercises the real chain (JWT guard ->
+        // EloquentUserProvider::retrieveById() -> tenant-aware-eloquent
+        // provider's TenantScope bypass) that a previous regression broke
+        // while every actingAs()-based test kept passing.
+        [, $user] = $this->createBusinessWithOwner([], [
+            'password' => 'password123',
+        ]);
+
+        $token = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/auth/me')
+            ->assertStatus(200)
+            ->assertJsonPath('user.id', $user->id);
+    }
+
     public function test_forgot_password_creates_reset_token_for_existing_user(): void
     {
         [, $user] = $this->createBusinessWithOwner();

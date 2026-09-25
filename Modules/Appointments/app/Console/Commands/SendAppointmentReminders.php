@@ -22,12 +22,25 @@ class SendAppointmentReminders extends Command
 
     public function handle(): int
     {
+        // Deliberately cross-tenant: this sweeps every business's appointments in
+        // one pass, so every relation query below needs its own explicit scope
+        // bypass — TenantScope now fails closed, and bypassing only the top-level
+        // Appointment query would NOT carry through to the eager-loaded client/
+        // service/staff relations or the whereHas('client', ...) subquery, since
+        // each builds a fresh query against its own model's global scopes.
+        // (Business has no TenantScope at all — it's the tenant root — so it
+        // needs no bypass.)
         $candidates = Appointment::withoutGlobalScopes()
-            ->with(['client', 'service', 'staff', 'business'])
+            ->with([
+                'client' => fn ($q) => $q->withoutGlobalScopes(),
+                'service' => fn ($q) => $q->withoutGlobalScopes(),
+                'staff' => fn ($q) => $q->withoutGlobalScopes(),
+                'business',
+            ])
             ->whereBetween('starts_at', [now(), now()->addHours(self::MAX_LEAD_HOURS + 1)])
             ->where('status', Appointment::STATUS_SCHEDULED)
             ->whereNull('reminder_sent_at')
-            ->whereHas('client', fn ($q) => $q->whereNotNull('email'))
+            ->whereHas('client', fn ($q) => $q->withoutGlobalScopes()->whereNotNull('email'))
             ->whereHas('business', fn ($q) => $q->where('notify_reminder_email', true))
             ->get();
 

@@ -4,5 +4,6 @@
     "Services": true,
     "Clients": true,
     "Appointments": true,
-    "Dashboard": true
+    "Dashboard": true,
+    "Platform": true
 }

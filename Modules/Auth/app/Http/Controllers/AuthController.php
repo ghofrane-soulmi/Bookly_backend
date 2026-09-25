@@ -29,13 +29,18 @@ class AuthController extends Controller
                 'timezone' => $data['timezone'] ?? 'UTC',
             ]);
 
-            $user = User::create([
-                'business_id' => $business->id,
+            // business_id can't be mass-assigned (not Fillable, to stop a tenant-
+            // scoped request body from ever reassigning a user's tenant) and
+            // BelongsToTenant's auto-populate hook can't help either since no
+            // tenant context exists yet during registration — set it directly.
+            $user = new User([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'role' => User::ROLE_OWNER,
             ]);
+            $user->business_id = $business->id;
+            $user->save();
 
             return [$user, $business];
         });
