@@ -25,7 +25,8 @@ class StaffTest extends TestCase
         $response->assertJsonPath('status.code', 201)
             ->assertJsonPath('data.role', User::ROLE_STAFF);
 
-        $this->assertDatabaseHas('users', ['email' => 'stella@example.test', 'role' => User::ROLE_STAFF]);
+        $staff = User::where('email', 'stella@example.test')->first();
+        $this->assertTrue($staff->hasRole(User::ROLE_STAFF));
     }
 
     public function test_staff_create_rejects_owner_role(): void
@@ -60,12 +61,12 @@ class StaffTest extends TestCase
     {
         [$business, $owner] = $this->createBusinessWithOwner();
 
-        $staff = $this->asTenant($business, fn () => User::create([
-            'name' => 'Stella',
-            'email' => 'stella@example.test',
-            'password' => 'password123',
-            'role' => User::ROLE_STAFF,
-        ]));
+        $staff = $this->asTenant($business, function () {
+            $staff = User::create(['name' => 'Stella', 'email' => 'stella@example.test', 'password' => 'password123']);
+            $staff->assignRole(User::ROLE_STAFF);
+
+            return $staff;
+        });
 
         $response = $this->actingAsTenantUser($owner)
             ->putJson("/api/staff/update/{$staff->id}", ['name' => 'Stella Updated']);
@@ -80,12 +81,12 @@ class StaffTest extends TestCase
     {
         [$business, $owner] = $this->createBusinessWithOwner();
 
-        $staff = $this->asTenant($business, fn () => User::create([
-            'name' => 'Stella',
-            'email' => 'stella@example.test',
-            'password' => 'password123',
-            'role' => User::ROLE_STAFF,
-        ]));
+        $staff = $this->asTenant($business, function () {
+            $staff = User::create(['name' => 'Stella', 'email' => 'stella@example.test', 'password' => 'password123']);
+            $staff->assignRole(User::ROLE_STAFF);
+
+            return $staff;
+        });
 
         $this->actingAsTenantUser($owner)
             ->deleteJson("/api/staff/delete/{$staff->id}")
@@ -99,12 +100,12 @@ class StaffTest extends TestCase
     {
         [$business, $owner] = $this->createBusinessWithOwner();
 
-        $this->asTenant($business, fn () => User::create([
-            'name' => 'Stella',
-            'email' => 'stella@example.test',
-            'password' => 'password123',
-            'role' => User::ROLE_STAFF,
-        ]));
+        $this->asTenant($business, function () {
+            $staff = User::create(['name' => 'Stella', 'email' => 'stella@example.test', 'password' => 'password123']);
+            $staff->assignRole(User::ROLE_STAFF);
+
+            return $staff;
+        });
 
         $this->actingAsTenantUser($owner)
             ->deleteJson("/api/staff/delete/{$owner->id}")

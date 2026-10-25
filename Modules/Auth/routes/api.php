@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\AuthController;
+use Modules\Auth\Http\Controllers\PermissionController;
+use Modules\Auth\Http\Controllers\RoleController;
 use Modules\Auth\Http\Controllers\StaffController;
 
 Route::prefix('auth')->name('auth.')->group(function () {
@@ -18,9 +20,21 @@ Route::prefix('auth')->name('auth.')->group(function () {
 });
 
 Route::middleware(['auth:api', 'tenant'])->prefix('staff')->group(function () {
-    Route::get('list', [StaffController::class, 'handleListStaff']);
-    Route::get('{id}/detail', [StaffController::class, 'handleGetStaff']);
-    Route::post('create', [StaffController::class, 'handleCreateStaff']);
-    Route::put('update/{id}', [StaffController::class, 'handleUpdateStaff']);
-    Route::delete('delete/{id}', [StaffController::class, 'handleDeleteStaff']);
+    Route::get('list', [StaffController::class, 'handleListStaff'])->middleware('permission:staff.view');
+    Route::get('{id}/detail', [StaffController::class, 'handleGetStaff'])->middleware('permission:staff.view');
+    Route::post('create', [StaffController::class, 'handleCreateStaff'])->middleware('permission:staff.manage');
+    Route::put('update/{id}', [StaffController::class, 'handleUpdateStaff'])->middleware('permission:staff.manage');
+    Route::delete('delete/{id}', [StaffController::class, 'handleDeleteStaff'])->middleware('permission:staff.manage');
+});
+
+Route::middleware(['auth:api', 'tenant', 'permission:roles.manage'])->prefix('roles')->group(function () {
+    Route::get('list', [RoleController::class, 'handleListRoles']);
+    Route::get('{id}/detail', [RoleController::class, 'handleGetRole']);
+    Route::post('create', [RoleController::class, 'handleCreateRole']);
+    Route::put('update/{id}', [RoleController::class, 'handleUpdateRole']);
+    Route::delete('delete/{id}', [RoleController::class, 'handleDeleteRole']);
+});
+
+Route::middleware(['auth:api', 'tenant', 'permission:roles.manage'])->prefix('permissions')->group(function () {
+    Route::get('list', [PermissionController::class, 'handleListPermissions']);
 });

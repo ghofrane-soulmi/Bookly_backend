@@ -14,7 +14,9 @@ use Modules\Auth\Http\Requests\LoginRequest;
 use Modules\Auth\Http\Requests\RegisterRequest;
 use Modules\Auth\Mail\PasswordResetMail;
 use Modules\Auth\Models\User;
+use Modules\Auth\Support\DefaultRoles;
 use Modules\Tenant\Models\Business;
+use Spatie\Permission\PermissionRegistrar;
 
 class AuthController extends Controller
 {
@@ -37,10 +39,17 @@ class AuthController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
-                'role' => User::ROLE_OWNER,
             ]);
             $user->business_id = $business->id;
             $user->save();
+
+            DefaultRoles::seed($business);
+
+            // DefaultRoles::seed() already points the permission "team" context
+            // at this business, so assignRole() resolves against the role it
+            // just created rather than a stale/no team context.
+            app(PermissionRegistrar::class)->setPermissionsTeamId($business->id);
+            $user->assignRole(User::ROLE_OWNER);
 
             return [$user, $business];
         });
@@ -63,6 +72,12 @@ class AuthController extends Controller
         }
 
         $user = auth('api')->user();
+
+        // login is a public route (no 'tenant' middleware), so nothing else
+        // has pointed the permission "team" context at this user's business
+        // yet — without this, the serialized $user's role/roles would be
+        // empty even though the assignment exists.
+        app(PermissionRegistrar::class)->setPermissionsTeamId($user->business_id);
 
         return response()->json([
             'user' => $user,

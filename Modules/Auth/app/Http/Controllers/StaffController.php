@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Modules\Auth\Models\User;
+use Modules\Tenant\Support\Tenant;
 
 class StaffController extends Controller
 {
@@ -17,7 +18,7 @@ class StaffController extends Controller
     public function handleListStaff(Request $request)
     {
         try {
-            $query = User::query()->orderBy('name');
+            $query = User::query()->with('roles')->orderBy('name');
 
             if ($request->filled('search')) {
                 $search = $request->query('search');
@@ -28,17 +29,17 @@ class StaffController extends Controller
             }
 
             if ($request->filled('role')) {
-                $query->where('role', $request->query('role'));
+                $query->whereHas('roles', fn ($q) => $q->where('name', $request->query('role')));
             }
 
             if (! $request->filled('page')) {
                 return response()->json([
-                    'data' => $query->get(['id', 'name', 'email', 'role']),
+                    'data' => $query->get(['id', 'name', 'email']),
                     'status' => ['message' => 'Staff retrieved successfully', 'code' => 200],
                 ]);
             }
 
-            $paginator = $query->paginate((int) $request->query('per_page', 10), ['id', 'name', 'email', 'role', 'created_at']);
+            $paginator = $query->paginate((int) $request->query('per_page', 10), ['id', 'name', 'email', 'created_at']);
 
             return response()->json([
                 'data' => $paginator->items(),
@@ -58,7 +59,7 @@ class StaffController extends Controller
     public function handleGetStaff($id)
     {
         try {
-            $staff = User::find($id);
+            $staff = User::with('roles')->find($id);
 
             if (! $staff) {
                 return response()->json([
@@ -78,11 +79,17 @@ class StaffController extends Controller
     public function handleCreateStaff(Request $request)
     {
         try {
+            $businessId = app(Tenant::class)->id();
+
             $validator = Validator::make($request->all(), [
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')],
                 'password' => ['required', 'string', 'min:8'],
-                'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_STAFF])],
+                'role' => [
+                    'required',
+                    Rule::exists('roles', 'name')->where('business_id', $businessId),
+                    Rule::notIn([User::ROLE_OWNER]),
+                ],
             ]);
 
             if ($validator->fails()) {
@@ -92,7 +99,13 @@ class StaffController extends Controller
                 ]);
             }
 
-            $staff = User::create($validator->validated());
+            $data = $validator->validated();
+            $role = $data['role'];
+
+            unset($data['role']);
+
+            $staff = User::create($data);
+            $staff->assignRole($role);
 
             return response()->json([
                 'data' => $staff,
@@ -114,11 +127,13 @@ class StaffController extends Controller
                 ]);
             }
 
+            $businessId = app(Tenant::class)->id();
+
             $validator = Validator::make($request->all(), [
                 'name' => ['sometimes', 'required', 'string', 'max:255'],
                 'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)->whereNull('deleted_at')],
                 'password' => ['sometimes', 'nullable', 'string', 'min:8'],
-                'role' => ['sometimes', 'required', Rule::in([User::ROLE_OWNER, User::ROLE_ADMIN, User::ROLE_STAFF])],
+                'role' => ['sometimes', 'required', Rule::exists('roles', 'name')->where('business_id', $businessId)],
             ]);
 
             if ($validator->fails()) {
@@ -134,7 +149,15 @@ class StaffController extends Controller
                 unset($data['password']);
             }
 
+            $role = $data['role'] ?? null;
+
+            unset($data['role']);
+
             $staff->update($data);
+
+            if ($role !== null) {
+                $staff->syncRoles([$role]);
+            }
 
             return response()->json([
                 'data' => $staff->fresh(),
