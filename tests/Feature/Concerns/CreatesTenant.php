@@ -3,8 +3,10 @@
 namespace Tests\Feature\Concerns;
 
 use Modules\Auth\Models\User;
+use Modules\Auth\Support\DefaultRoles;
 use Modules\Tenant\Models\Business;
 use Modules\Tenant\Support\Tenant;
+use Spatie\Permission\PermissionRegistrar;
 
 trait CreatesTenant
 {
@@ -16,12 +18,15 @@ trait CreatesTenant
         $business = Business::factory()->create($businessAttrs);
 
         app(Tenant::class)->set($business->id);
+        app(PermissionRegistrar::class)->setPermissionsTeamId($business->id);
 
         $user = User::factory()->create([
             'business_id' => $business->id,
-            'role' => User::ROLE_OWNER,
             ...$userAttrs,
         ]);
+
+        DefaultRoles::seed($business);
+        $user->assignRole(User::ROLE_OWNER);
 
         return [$business, $user];
     }
@@ -43,6 +48,7 @@ trait CreatesTenant
     {
         $previous = app(Tenant::class)->id();
         app(Tenant::class)->set($business->id);
+        app(PermissionRegistrar::class)->setPermissionsTeamId($business->id);
 
         try {
             return $callback();

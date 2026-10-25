@@ -11,6 +11,7 @@
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "nwidart/laravel-modules": "^13.0",
+        "spatie/laravel-permission": "^8.3",
         "tymon/jwt-auth": "^2.3"
     },
     "require-dev": {

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Modules\Auth\Models\User;
+use Modules\Tenant\Models\Scopes\TenantScope;
 use Tests\Feature\Concerns\CreatesTenant;
 use Tests\TestCase;
 
@@ -30,7 +31,9 @@ class AuthTest extends TestCase
             ->assertJsonStructure(['token', 'token_type', 'expires_in']);
 
         $this->assertDatabaseHas('businesses', ['name' => 'Glow Salon']);
-        $this->assertDatabaseHas('users', ['email' => 'jane@glow.test', 'role' => User::ROLE_OWNER]);
+
+        $owner = User::withoutGlobalScope(TenantScope::class)->where('email', 'jane@glow.test')->first();
+        $this->assertTrue($owner->hasRole(User::ROLE_OWNER));
     }
 
     public function test_register_rejects_missing_required_fields(): void
@@ -67,6 +70,7 @@ class AuthTest extends TestCase
         ])
             ->assertStatus(200)
             ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.role', User::ROLE_OWNER)
             ->assertJsonPath('business.id', $business->id)
             ->assertJsonStructure(['token', 'token_type', 'expires_in']);
     }
