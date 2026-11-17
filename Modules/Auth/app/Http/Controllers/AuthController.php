@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Modules\Auth\Http\Requests\LoginRequest;
 use Modules\Auth\Http\Requests\RegisterRequest;
 use Modules\Auth\Mail\PasswordResetMail;
@@ -91,6 +92,51 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user(),
             'business' => $request->user()->business,
+        ]);
+    }
+
+    /**
+     * Self-service profile edit for any signed-in user, independent of the
+     * staff.manage permission (which plain staff members don't have).
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)->whereNull('deleted_at')],
+            'password' => ['sometimes', 'nullable', 'string', 'min:8'],
+            'current_password' => ['required_with:password', 'nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => ['message' => 'Validation failed', 'code' => 422],
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        $data = $validator->validated();
+
+        if (! empty($data['password']) && ! Hash::check($data['current_password'] ?? '', $user->password)) {
+            return response()->json([
+                'status' => ['message' => 'Validation failed', 'code' => 422],
+                'errors' => ['current_password' => ['The current password is incorrect.']],
+            ]);
+        }
+
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
+        unset($data['current_password']);
+
+        $user->update($data);
+
+        return response()->json([
+            'data' => $user->fresh(),
+            'status' => ['message' => 'Profile updated successfully', 'code' => 200],
         ]);
     }
 

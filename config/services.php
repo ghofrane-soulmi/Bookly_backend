@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    // Shared secret for the HTTP cron trigger (/api/cron/reminders).
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];

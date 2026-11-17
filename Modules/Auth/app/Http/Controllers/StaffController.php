@@ -129,11 +129,26 @@ class StaffController extends Controller
 
             $businessId = app(Tenant::class)->id();
 
+            // The owner account can only be edited by the owner themselves —
+            // otherwise an admin could change the owner's email/password and
+            // take over the business.
+            if ($staff->hasRole(User::ROLE_OWNER) && $request->user()->id !== $staff->id) {
+                return response()->json([
+                    'status' => ['message' => 'Only the owner can edit the owner account.', 'code' => 403],
+                ]);
+            }
+
             $validator = Validator::make($request->all(), [
                 'name' => ['sometimes', 'required', 'string', 'max:255'],
                 'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)->whereNull('deleted_at')],
                 'password' => ['sometimes', 'nullable', 'string', 'min:8'],
-                'role' => ['sometimes', 'required', Rule::exists('roles', 'name')->where('business_id', $businessId)],
+                // Same rule as create: the owner role is never granted through
+                // this endpoint (stops an admin promoting themselves or others).
+                'role' => [
+                    'sometimes', 'required',
+                    Rule::exists('roles', 'name')->where('business_id', $businessId),
+                    Rule::notIn([User::ROLE_OWNER]),
+                ],
             ]);
 
             if ($validator->fails()) {

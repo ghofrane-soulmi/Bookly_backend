@@ -15,6 +15,7 @@ use Modules\Appointments\Mail\AppointmentConfirmationMail;
 use Modules\Appointments\Mail\AppointmentRescheduledMail;
 use Modules\Appointments\Models\Appointment;
 use Modules\Appointments\Support\AppointmentConflictException;
+use Modules\Appointments\Support\AppointmentScheduler;
 use Modules\Auth\Models\User;
 use Modules\Services\Models\Service;
 use Modules\Tenant\Models\Business;
@@ -23,6 +24,8 @@ use Modules\Tenant\Support\Tenant;
 class AppointmentController extends Controller
 {
     use ReturnsServerErrorResponse;
+
+    public function __construct(protected AppointmentScheduler $scheduler) {}
 
     public function handleListAppointments(Request $request)
     {
@@ -140,10 +143,11 @@ class AppointmentController extends Controller
 
             $data = $validator->validated();
             $service = Service::findOrFail($data['service_id']);
-            $startsAt = Carbon::parse($data['starts_at']);
-            $endsAt = $this->resolveEndsAt($service, $startsAt);
+            $business = Business::findOrFail(app(Tenant::class)->id());
+            $startsAt = $this->scheduler->parseStartsAt($business, $data['starts_at']);
+            $endsAt = $this->scheduler->endsAt($service, $startsAt);
 
-            if ($this->violatesBusinessHours($startsAt, $endsAt)) {
+            if ($this->scheduler->violatesBusinessHours($business, $startsAt, $endsAt)) {
                 return response()->json([
                     'status' => ['message' => "This time is outside the business's operating hours.", 'code' => 422],
                 ]);
@@ -157,7 +161,7 @@ class AppointmentController extends Controller
                     // row — they're serialized here instead of racing.
                     User::where('id', $data['user_id'])->lockForUpdate()->firstOrFail();
 
-                    if ($this->hasConflict($data['user_id'], $startsAt, $endsAt)) {
+                    if ($this->scheduler->hasConflict($data['user_id'], $startsAt, $endsAt)) {
                         throw new AppointmentConflictException;
                     }
 
@@ -239,10 +243,11 @@ class AppointmentController extends Controller
             $userId = $data['user_id'] ?? $appointment->user_id;
             $serviceId = $data['service_id'] ?? $appointment->service_id;
             $service = Service::findOrFail($serviceId);
-            $startsAt = isset($data['starts_at']) ? Carbon::parse($data['starts_at']) : $appointment->starts_at;
-            $endsAt = $this->resolveEndsAt($service, $startsAt);
+            $business = Business::findOrFail(app(Tenant::class)->id());
+            $startsAt = isset($data['starts_at']) ? $this->scheduler->parseStartsAt($business, $data['starts_at']) : $appointment->starts_at;
+            $endsAt = $this->scheduler->endsAt($service, $startsAt);
 
-            if (isset($data['starts_at']) && $this->violatesBusinessHours($startsAt, $endsAt)) {
+            if (isset($data['starts_at']) && $this->scheduler->violatesBusinessHours($business, $startsAt, $endsAt)) {
                 return response()->json([
                     'status' => ['message' => "This time is outside the business's operating hours.", 'code' => 422],
                 ]);
@@ -257,7 +262,7 @@ class AppointmentController extends Controller
                     // the same race for reschedules/staff reassignment.
                     User::where('id', $userId)->lockForUpdate()->firstOrFail();
 
-                    if ($this->hasConflict($userId, $startsAt, $endsAt, excludeId: $appointment->id)) {
+                    if ($this->scheduler->hasConflict($userId, $startsAt, $endsAt, excludeId: $appointment->id)) {
                         throw new AppointmentConflictException;
                     }
 
@@ -325,48 +330,4 @@ class AppointmentController extends Controller
         }
     }
 
-    protected function resolveEndsAt(Service $service, Carbon $startsAt): Carbon
-    {
-        return $startsAt->copy()->addMinutes($service->duration_minutes);
-    }
-
-    /**
-     * A business with no operating_hours configured is treated as always open
-     * (opt-in restriction), so existing businesses aren't retroactively broken.
-     */
-    protected function violatesBusinessHours(Carbon $startsAt, Carbon $endsAt): bool
-    {
-        $business = Business::find(app(Tenant::class)->id());
-
-        if (! $business || ! $business->operating_hours) {
-            return false;
-        }
-
-        $localStart = $startsAt->copy()->setTimezone($business->timezone);
-        $localEnd = $endsAt->copy()->setTimezone($business->timezone);
-
-        $day = strtolower($localStart->format('l'));
-        $hours = $business->operating_hours[$day] ?? null;
-
-        if (empty($hours['open']) || empty($hours['close'])) {
-            return true;
-        }
-
-        $open = $localStart->copy()->setTimeFromTimeString($hours['open']);
-        $close = $localStart->copy()->setTimeFromTimeString($hours['close']);
-
-        return $localStart->lt($open)
-            || $localEnd->gt($close)
-            || $localEnd->format('Y-m-d') !== $localStart->format('Y-m-d');
-    }
-
-    protected function hasConflict(int $userId, Carbon $startsAt, Carbon $endsAt, ?int $excludeId = null): bool
-    {
-        return Appointment::where('user_id', $userId)
-            ->where('status', '!=', Appointment::STATUS_CANCELLED)
-            ->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))
-            ->where('starts_at', '<', $endsAt)
-            ->where('ends_at', '>', $startsAt)
-            ->exists();
-    }
 }

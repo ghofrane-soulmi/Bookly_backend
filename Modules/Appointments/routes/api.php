@@ -10,3 +10,7 @@ Route::middleware(['auth:api', 'tenant'])->prefix('appointments')->group(functio
     Route::put('update/{id}', [AppointmentController::class, 'handleUpdateAppointment'])->middleware('permission:appointments.manage');
     Route::delete('delete/{id}', [AppointmentController::class, 'handleDeleteAppointment'])->middleware('permission:appointments.manage');
 });
+
+// Serverless scheduler hook (see CronController). Throttled; secret-protected.
+Route::match(['get', 'post'], 'cron/reminders', [\Modules\Appointments\Http\Controllers\CronController::class, 'reminders'])
+    ->middleware('throttle:10,1');

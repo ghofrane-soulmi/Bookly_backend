@@ -1,8 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Modules\Platform\Http\Controllers\PlatformController;
-
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
-    Route::apiResource('platforms', PlatformController::class)->names('platform');
-});
+// Platform holds shared, non-tenant data (currencies). It exposes no HTTP
+// routes; the generated scaffold routes were removed (they used auth:sanctum,
+// which this app does not install, and 500ed).

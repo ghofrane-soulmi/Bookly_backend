@@ -1,0 +1,30 @@
+name: Appointment reminders
+
+# Serverless hosting has no `schedule:run`, so this pings the API's cron hook
+# hourly (the reminder command uses a +/-1h window around each business's lead time).
+# Needs repository secrets: BOOKLY_API_URL (e.g. https://bookly-api.vercel.app)
+# and CRON_SECRET (same value as the CRON_SECRET env var on Vercel).
+
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    if: ${{ vars.REMINDERS_ENABLED != 'false' }}
+    steps:
+      - name: Trigger reminders
+        env:
+          API_URL: ${{ secrets.BOOKLY_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "BOOKLY_API_URL / CRON_SECRET secrets not set; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Accept: application/json" \
+            "$API_URL/api/cron/reminders"

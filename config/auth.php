@@ -42,6 +42,14 @@ return [
             'driver' => 'jwt',
             'provider' => 'users',
         ],
+
+        // Front-office end customers (Modules\Booking). Separate JWT guard and
+        // provider; tokens aren't interchangeable with staff tokens because
+        // jwt.lock_subject binds each token to its model class.
+        'customer' => [
+            'driver' => 'jwt',
+            'provider' => 'customers',
+        ],
     ],
 
     /*
@@ -68,6 +76,11 @@ return [
             // system's own user lookups, which run before tenant context exists.
             'driver' => 'tenant-aware-eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => Modules\Booking\Models\Customer::class,
         ],
 
         // 'users' => [
