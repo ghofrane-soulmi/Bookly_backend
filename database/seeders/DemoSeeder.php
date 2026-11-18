@@ -23,7 +23,7 @@ use Spatie\Permission\PermissionRegistrar;
  *   php artisan db:seed --class=DemoSeeder
  *
  * Logins (password for all: "123456789"):
- *   back office:  owner@demo.bookly.test, sami@demo.bookly.test (staff)
+ *   back office:  owner@demo.bookly.test, flen@demo.bookly.test (staff)
  *   front office: customer@demo.bookly.test
  */
 class DemoSeeder extends Seeder
@@ -68,9 +68,10 @@ class DemoSeeder extends Seeder
 
             $staff = [];
             foreach ([
-                ['Amira Ben Ali', 'owner@demo.bookly.test', User::ROLE_OWNER],
-                ['Sami Trabelsi', 'sami@demo.bookly.test', User::ROLE_STAFF],
-                ['Leila Haddad', 'leila@demo.bookly.test', User::ROLE_STAFF],
+                // Placeholder names ("Foulen Ben Foulen" is the Tunisian John Doe).
+                ['Foulen Ben Foulen', 'owner@demo.bookly.test', User::ROLE_OWNER],
+                ['Flen Ben Flen', 'flen@demo.bookly.test', User::ROLE_STAFF],
+                ['Foulena Bent Foulen', 'foulena@demo.bookly.test', User::ROLE_STAFF],
             ] as [$name, $email, $role]) {
                 $user = new User(['name' => $name, 'email' => $email, 'password' => self::PASSWORD]);
                 $user->business_id = $business->id;
@@ -91,7 +92,7 @@ class DemoSeeder extends Seeder
             ]));
 
             $customer = Customer::create([
-                'name' => 'Yasmine Customer',
+                'name' => 'Fouleni Client',
                 'email' => 'customer@demo.bookly.test',
                 'phone' => '+216 20 000 000',
                 'password' => self::PASSWORD,
@@ -101,7 +102,7 @@ class DemoSeeder extends Seeder
             $client->customer_id = $customer->id;
             $client->save();
 
-            $walkIn = Client::create(['name' => 'Karim Walk-in', 'phone' => '+216 22 111 222']);
+            $walkIn = Client::create(['name' => 'Flen Walk-in', 'phone' => '+216 22 111 222']);
 
             // A past visit and two upcoming ones, at 10:00/14:00 Tunis time on
             // weekdays so they fall inside the opening hours.

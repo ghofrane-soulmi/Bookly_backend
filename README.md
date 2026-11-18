@@ -81,7 +81,7 @@ php artisan test
 | App | Email | Role |
 |---|---|---|
 | Back office | `owner@demo.bookly.test` | Owner (everything) |
-| Back office | `sami@demo.bookly.test` | Staff (limited permissions) |
+| Back office | `flen@demo.bookly.test` | Staff (limited permissions) |
 | Front office | `customer@demo.bookly.test` | Customer |
 
 ## Deployment
