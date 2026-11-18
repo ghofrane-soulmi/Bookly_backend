@@ -27,6 +27,7 @@ class DefaultRoles
             'business.manage',
             'dashboard.view',
             'roles.manage',
+            'invoices.view', 'invoices.manage',
         ],
         User::ROLE_ADMIN => [
             'services.view', 'services.manage',
@@ -34,6 +35,7 @@ class DefaultRoles
             'appointments.view', 'appointments.manage',
             'staff.view', 'staff.manage',
             'dashboard.view',
+            'invoices.view', 'invoices.manage',
         ],
         User::ROLE_STAFF => [
             'services.view',

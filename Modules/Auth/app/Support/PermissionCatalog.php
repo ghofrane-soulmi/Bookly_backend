@@ -21,5 +21,7 @@ class PermissionCatalog
         'business.manage',
         'dashboard.view',
         'roles.manage',
+        'invoices.view',
+        'invoices.manage',
     ];
 }

@@ -22,13 +22,15 @@ use Spatie\Permission\PermissionRegistrar;
  *
  *   php artisan db:seed --class=DemoSeeder
  *
- * Logins (password for all: "password"):
+ * Logins (password for all: "123456789"):
  *   back office:  owner@demo.bookly.test, sami@demo.bookly.test (staff)
  *   front office: customer@demo.bookly.test
  */
 class DemoSeeder extends Seeder
 {
     public const SLUG = 'demo-salon';
+
+    public const PASSWORD = '123456789';
 
     public function run(): void
     {
@@ -70,7 +72,7 @@ class DemoSeeder extends Seeder
                 ['Sami Trabelsi', 'sami@demo.bookly.test', User::ROLE_STAFF],
                 ['Leila Haddad', 'leila@demo.bookly.test', User::ROLE_STAFF],
             ] as [$name, $email, $role]) {
-                $user = new User(['name' => $name, 'email' => $email, 'password' => 'password']);
+                $user = new User(['name' => $name, 'email' => $email, 'password' => self::PASSWORD]);
                 $user->business_id = $business->id;
                 $user->save();
                 $user->assignRole($role);
@@ -92,7 +94,7 @@ class DemoSeeder extends Seeder
                 'name' => 'Yasmine Customer',
                 'email' => 'customer@demo.bookly.test',
                 'phone' => '+216 20 000 000',
-                'password' => 'password',
+                'password' => self::PASSWORD,
             ]);
 
             $client = new Client(['name' => $customer->name, 'email' => $customer->email, 'phone' => $customer->phone]);

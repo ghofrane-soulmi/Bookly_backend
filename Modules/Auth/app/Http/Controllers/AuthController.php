@@ -60,6 +60,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'business' => $business,
+            'permissions' => $this->permissionNames($user),
             ...$this->tokenResponse($token),
         ], 201);
     }
@@ -83,6 +84,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'business' => $user->business,
+            'permissions' => $this->permissionNames($user),
             ...$this->tokenResponse($token),
         ]);
     }
@@ -92,6 +94,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user(),
             'business' => $request->user()->business,
+            'permissions' => $this->permissionNames($request->user()),
         ]);
     }
 
@@ -234,6 +237,20 @@ class AuthController extends Controller
         return response()->json([
             'status' => ['message' => 'Password reset successfully. You can now log in.', 'code' => 200],
         ]);
+    }
+
+    /**
+     * Permission names the user holds through their role(s), so the UI can
+     * show only what the API will actually allow. The API still enforces
+     * every permission itself; this is for presentation only.
+     *
+     * @return array<int, string>
+     */
+    protected function permissionNames(User $user): array
+    {
+        app(PermissionRegistrar::class)->setPermissionsTeamId($user->business_id);
+
+        return $user->getAllPermissions()->pluck('name')->sort()->values()->all();
     }
 
     /**

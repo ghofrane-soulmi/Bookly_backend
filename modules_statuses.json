@@ -6,5 +6,6 @@
     "Appointments": true,
     "Dashboard": true,
     "Platform": true,
-    "Booking": true
+    "Booking": true,
+    "Invoices": true
 }

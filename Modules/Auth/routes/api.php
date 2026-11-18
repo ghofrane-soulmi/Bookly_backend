@@ -21,7 +21,9 @@ Route::prefix('auth')->name('auth.')->group(function () {
 });
 
 Route::middleware(['auth:api', 'tenant'])->prefix('staff')->group(function () {
-    Route::get('list', [StaffController::class, 'handleListStaff'])->middleware('permission:staff.view');
+    // Also readable with appointments.view: booking an appointment needs the
+    // list of staff to pick from, even for members who can't manage staff.
+    Route::get('list', [StaffController::class, 'handleListStaff'])->middleware('permission:staff.view|appointments.view');
     Route::get('{id}/detail', [StaffController::class, 'handleGetStaff'])->middleware('permission:staff.view');
     Route::post('create', [StaffController::class, 'handleCreateStaff'])->middleware('permission:staff.manage');
     Route::put('update/{id}', [StaffController::class, 'handleUpdateStaff'])->middleware('permission:staff.manage');

@@ -1,58 +1,89 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Bookly — API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 13 API behind **Bookly**, a multi-tenant booking and business-management SaaS for salons, studios and other appointment-based businesses.
 
-## About Laravel
+One API serves two apps:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **[Back office](https://github.com/ghofrane-soulmi/Bookly_frontend)**: staff manage services, clients, appointments, invoices, staff and roles.
+- **[Front office](https://github.com/ghofrane-soulmi/Bookly_frontoffice)**: customers open a business's public page, see live availability, book, and manage their bookings.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+> **Live demo:** _add your Vercel URLs here after deploying_. Demo logins are listed [below](#demo-data).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Highlights
 
-## Learning Laravel
+- **Multi-tenancy that fails closed.** Every tenant model goes through a global scope; querying one with no tenant set throws instead of silently returning every business's data. Cross-tenant IDs are rejected at validation.
+- **Roles and permissions per business**: spatie/laravel-permission with teams. Owner, admin and staff roles are seeded for each business, and every route is permission-gated. The login response returns the user's permissions so the UI only shows what the API allows.
+- **Two separate JWT guards.** Staff (`api`) and customers (`customer`) authenticate independently. Tokens are bound to their model class, so neither works on the other's routes (covered by tests).
+- **Scheduling engine** (`AppointmentScheduler`): opening hours, per-staff conflict detection with row locks against double-booking races, free-slot generation for the public booking page, and correct timezone handling.
+- **Invoices with exact money.** Integer minor units, currency-aware decimals (3 for TND), server-side totals, discount and tax, payments, and states derived as draft, sent, partial, paid or past due. Completed appointments turn into a draft invoice in one call, and can't be invoiced twice.
+- **Emails**: booking confirmation, cancellation, reschedule, reminder, password reset and invoice. A mail outage never breaks a committed booking.
+- **Serverless-ready**: runs on Vercel with the community PHP runtime. Reminders are triggered through a secret-protected HTTP hook, pinged hourly by GitHub Actions.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Architecture
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Modular monolith ([nwidart/laravel-modules](https://github.com/nWidart/laravel-modules)), one module per domain:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+| Module | Responsibility |
+|---|---|
+| `Tenant` | Businesses, tenant context and global scope, settings and opening hours |
+| `Auth` | Staff accounts, JWT auth, roles and permissions, staff management |
+| `Services` | Bookable services with duration and price |
+| `Clients` | A business's client records (optionally linked to a customer account) |
+| `Appointments` | Booking, conflicts, opening hours, emails, reminders, scheduler |
+| `Invoices` | Invoices, line items, payments, invoicing from appointments |
+| `Booking` | Public business pages and slots, customer accounts and bookings |
+| `Dashboard` | KPIs and charts for the back-office home page |
+| `Platform` | Shared reference data (currencies) |
 
-## Agentic Development
+**Stack:** PHP 8.4 · Laravel 13 · MySQL 8 (TiDB-compatible) · tymon/jwt-auth · spatie/laravel-permission · brick/money · PHPUnit
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## API overview
+
+All routes are under `/api`. Staff routes need a staff JWT plus the listed permission. Customer routes need a customer JWT.
+
+| Area | Endpoints |
+|---|---|
+| Staff auth | `POST auth/register · auth/login · auth/refresh · auth/logout`, `GET auth/me`, `PUT auth/profile`, password reset |
+| Back office | `services/*`, `clients/*`, `appointments/*`, `staff/*`, `roles/*`, `permissions/list`, `business/*`, `dashboard/summary` |
+| Invoices | `invoices/list · {id}/detail · create · update/{id} · delete/{id} · {id}/duplicate · {id}/send · {id}/payments · uninvoiced-appointments · from-appointments` |
+| Public | `GET public/businesses/{slug}`, `GET public/businesses/{slug}/slots?service_id&date&user_id` |
+| Customers | `POST customer/auth/*`, `GET/PUT customer/me`, `GET customer/appointments`, `POST customer/businesses/{slug}/appointments`, `POST customer/appointments/{id}/cancel` |
+| Scheduler | `GET/POST cron/reminders` (Bearer `CRON_SECRET`) |
+
+## Running locally
+
+Requirements: PHP 8.4 (with `intl`, `pdo_mysql`, `mbstring`), Composer, MySQL 8.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan jwt:secret
+# set DB_* in .env, then:
+php artisan migrate --seed      # tables + Demo Salon
+php artisan serve               # http://127.0.0.1:8000
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Tip: enable OPcache (`opcache.enable_cli=1`) for `php artisan serve`. Without it, every request recompiles the framework.
 
-## Contributing
+## Tests
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan test
+```
 
-## Code of Conduct
+131 feature tests (SQLite in memory) cover auth and token isolation, tenant isolation, role permissions, scheduling and double-booking, opening hours and timezones, the customer booking flow, invoices (totals, rounding, 3-decimal currencies, payments, states, invoicing appointments) and emails.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Demo data
 
-## Security Vulnerabilities
+`php artisan db:seed` creates the **Demo Salon** (`/b/demo-salon` in the front office): opening hours, 3 staff, 5 services, clients, appointments and invoices in every state. The password for every account is **`123456789`**.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| App | Email | Role |
+|---|---|---|
+| Back office | `owner@demo.bookly.test` | Owner (everything) |
+| Back office | `sami@demo.bookly.test` | Staff (limited permissions) |
+| Front office | `customer@demo.bookly.test` | Customer |
 
-## License
+## Deployment
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The API deploys to Vercel (`vercel.json`, `api/index.php`) with a free MySQL-compatible database. See `DEPLOY.md` in the workspace for the full step-by-step guide.
