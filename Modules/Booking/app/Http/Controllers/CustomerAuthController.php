@@ -3,6 +3,7 @@
 namespace Modules\Booking\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\DemoAccounts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +85,10 @@ class CustomerAuthController extends Controller
 
         $data = $validator->validated();
 
+        if (DemoAccounts::changesLogin($customer->email, $data)) {
+            return $this->envelope(null, DemoAccounts::MESSAGE, 403);
+        }
+
         if (! empty($data['password']) && ! Hash::check($data['current_password'] ?? '', $customer->password)) {
             return $this->validationError(['current_password' => ['The current password is incorrect.']]);
         }
@@ -158,6 +163,11 @@ class CustomerAuthController extends Controller
         }
 
         $data = $validator->validated();
+
+        if (DemoAccounts::isDemo($data['email'])) {
+            return $this->envelope(null, DemoAccounts::MESSAGE, 403);
+        }
+
         $record = DB::table('customer_password_reset_tokens')->where('email', $data['email'])->first();
 
         if (! $record || ! Hash::check($data['token'], $record->token)) {

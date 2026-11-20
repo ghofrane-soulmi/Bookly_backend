@@ -7,7 +7,12 @@ One API serves two apps:
 - **[Back office](https://github.com/ghofrane-soulmi/Bookly_frontend)**: staff manage services, clients, appointments, invoices, staff and roles.
 - **[Front office](https://github.com/ghofrane-soulmi/Bookly_frontoffice)**: customers open a business's public page, see live availability, book, and manage their bookings.
 
-> **Live demo:** _add your Vercel URLs here after deploying_. Demo logins are listed [below](#demo-data).
+> **Live demo**
+> - Website and booking: **<https://bookly-tn.vercel.app>** (demo salon: [/b/demo-salon](https://bookly-tn.vercel.app/b/demo-salon), customer `customer@demo.bookly.test` / `123456789`)
+> - Back office: **<https://bookly-admin-tn.vercel.app>** (owner `owner@demo.bookly.test` / `123456789`)
+> - API: <https://bookly-api-tn.vercel.app/api/public/businesses/demo-salon>
+>
+> The demo resets itself every night (fresh appointments and invoices), and the shared demo logins can't have their email or password changed.
 
 ## Highlights
 
@@ -17,7 +22,7 @@ One API serves two apps:
 - **Scheduling engine** (`AppointmentScheduler`): opening hours, per-staff conflict detection with row locks against double-booking races, free-slot generation for the public booking page, and correct timezone handling.
 - **Invoices with exact money.** Integer minor units, currency-aware decimals (3 for TND), server-side totals, discount and tax, payments, and states derived as draft, sent, partial, paid or past due. Completed appointments turn into a draft invoice in one call, and can't be invoiced twice.
 - **Emails**: booking confirmation, cancellation, reschedule, reminder, password reset and invoice. A mail outage never breaks a committed booking.
-- **Serverless-ready**: runs on Vercel with the community PHP runtime. Reminders are triggered through a secret-protected HTTP hook, pinged hourly by GitHub Actions.
+- **Serverless-ready**: runs on Vercel with the community PHP runtime. Reminders are triggered through a secret-protected HTTP hook, pinged hourly by GitHub Actions, and a daily Vercel Cron rebuilds the public demo (`php artisan demo:reset`).
 
 ## Architecture
 
@@ -48,7 +53,7 @@ All routes are under `/api`. Staff routes need a staff JWT plus the listed permi
 | Invoices | `invoices/list · {id}/detail · create · update/{id} · delete/{id} · {id}/duplicate · {id}/send · {id}/payments · uninvoiced-appointments · from-appointments` |
 | Public | `GET public/businesses/{slug}`, `GET public/businesses/{slug}/slots?service_id&date&user_id` |
 | Customers | `POST customer/auth/*`, `GET/PUT customer/me`, `GET customer/appointments`, `POST customer/businesses/{slug}/appointments`, `POST customer/appointments/{id}/cancel` |
-| Scheduler | `GET/POST cron/reminders` (Bearer `CRON_SECRET`) |
+| Scheduler | `GET/POST cron/reminders`, `GET/POST cron/reset-demo` (Bearer `CRON_SECRET`) |
 
 ## Running locally
 

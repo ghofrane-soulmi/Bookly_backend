@@ -6,9 +6,12 @@
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.8.0",
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
+  "crons": [
+    { "path": "/api/cron/reset-demo", "schedule": "0 4 * * *" }
+  ],
   "routes": [
     { "src": "/(.*)", "dest": "/api/index.php" }
   ],

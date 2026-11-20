@@ -3,6 +3,7 @@
 namespace Modules\Auth\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ReturnsServerErrorResponse;
+use App\Support\DemoAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -159,6 +160,12 @@ class StaffController extends Controller
             }
 
             $data = $validator->validated();
+
+            if (DemoAccounts::changesLogin($staff->email, $data)) {
+                return response()->json([
+                    'status' => ['message' => DemoAccounts::MESSAGE, 'code' => 403],
+                ], 403);
+            }
 
             if (empty($data['password'])) {
                 unset($data['password']);

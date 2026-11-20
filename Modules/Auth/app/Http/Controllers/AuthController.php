@@ -3,6 +3,7 @@
 namespace Modules\Auth\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\DemoAccounts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -122,6 +123,12 @@ class AuthController extends Controller
 
         $data = $validator->validated();
 
+        if (DemoAccounts::changesLogin($user->email, $data)) {
+            return response()->json([
+                'status' => ['message' => DemoAccounts::MESSAGE, 'code' => 403],
+            ], 403);
+        }
+
         if (! empty($data['password']) && ! Hash::check($data['current_password'] ?? '', $user->password)) {
             return response()->json([
                 'status' => ['message' => 'Validation failed', 'code' => 422],
@@ -208,6 +215,12 @@ class AuthController extends Controller
         }
 
         $data = $validator->validated();
+
+        if (DemoAccounts::isDemo($data['email'])) {
+            return response()->json([
+                'status' => ['message' => DemoAccounts::MESSAGE, 'code' => 403],
+            ], 403);
+        }
 
         $record = DB::table('password_reset_tokens')->where('email', $data['email'])->first();
 
